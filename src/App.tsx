@@ -116,7 +116,7 @@ export default function App() {
               pamlicious bite
             </p>
             <p className="font-['Outfit'] text-sm text-[#7A6960]">
-              Crafted in Lagos with love · © 2026
+              Crafted with love pamliciuos · © 2026
             </p>
           </footer>
         </>
