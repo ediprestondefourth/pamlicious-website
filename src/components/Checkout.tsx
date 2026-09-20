@@ -6,6 +6,7 @@ interface CheckoutProps {
   items: CartItem[];
   onBack: () => void;
   onComplete: () => void;
+  onNotify?: (message: string, tone?: "success" | "error") => void;
 }
 
 const TIME_SLOTS = ["9:00 AM – 12:00 PM", "12:00 PM – 4:00 PM"];
@@ -18,7 +19,7 @@ function getFirstDayOfMonth(year: number, month: number) {
   return new Date(year, month, 1).getDay();
 }
 
-export default function Checkout({ items, onBack, onComplete }: CheckoutProps) {
+export default function Checkout({ items, onBack, onComplete, onNotify }: CheckoutProps) {
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
@@ -27,8 +28,10 @@ export default function Checkout({ items, onBack, onComplete }: CheckoutProps) {
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" });
   const [submitted, setSubmitted] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
+  const isEmpty = items.length === 0;
   const deliveryFee = subtotal >= 15000 ? 0 : 1500;
   const total = subtotal + deliveryFee;
 
@@ -63,8 +66,17 @@ export default function Checkout({ items, onBack, onComplete }: CheckoutProps) {
 
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
+    if (items.length === 0) {
+      onNotify?.("Your box is empty. Add a pastry before checking out.", "error");
+      return;
+    }
+    if (!selectedDate || !selectedSlot) {
+      onNotify?.("Choose a delivery date and time slot to continue.", "error");
+      return;
+    }
+    setIsSubmitting(true);
     setSubmitted(true);
-    setTimeout(onComplete, 2500);
+    window.setTimeout(onComplete, 2500);
   }
 
   if (submitted) {
@@ -108,6 +120,12 @@ export default function Checkout({ items, onBack, onComplete }: CheckoutProps) {
         <h1 className="font-['Playfair_Display'] text-3xl sm:text-4xl font-bold text-[#2C2C2C] mb-10">
           Checkout
         </h1>
+
+        {isEmpty && (
+          <div role="alert" className="mb-8 rounded-2xl border border-[#E8B9B9] bg-[#FFF5F5] p-4 font-['Outfit'] text-sm text-[#B33A3A]">
+            Your box is empty. Add a pastry before continuing to payment.
+          </div>
+        )}
 
         <form onSubmit={handleSubmit}>
           <div className="grid lg:grid-cols-[1fr_380px] gap-8">
@@ -313,9 +331,10 @@ export default function Checkout({ items, onBack, onComplete }: CheckoutProps) {
 
                 <button
                   type="submit"
-                  className="mt-6 w-full py-3.5 bg-[#9B1C2E] text-white rounded-full font-['Outfit'] font-semibold text-sm hover:bg-[#7d1624] transition-all duration-300 hover:shadow-lg hover:shadow-[#9B1C2E]/20"
+                  disabled={isSubmitting || isEmpty}
+                  className="mt-6 w-full py-3.5 bg-[#9B1C2E] text-white rounded-full font-['Outfit'] font-semibold text-sm hover:bg-[#7d1624] transition-all duration-300 hover:shadow-lg hover:shadow-[#9B1C2E]/20 disabled:cursor-not-allowed disabled:opacity-60"
                 >
-                  Pay ₦{total.toLocaleString()}
+                  {isSubmitting ? "Preparing payment..." : `Pay ₦${total.toLocaleString()}`}
                 </button>
                 <p className="font-['Outfit'] text-center text-xs text-[#7A6960] mt-3">
                   Powered by Paystack · 100% Secure

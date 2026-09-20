@@ -48,6 +48,22 @@ html {
   scroll-behavior: smooth;
 }
 
+html[data-theme="dark"] {
+  color-scheme: dark;
+  background-color: #24191b;
+  color: #fff8f2;
+}
+
+html[data-theme="dark"] [class*="bg-[#FFF8F2]"],
+html[data-theme="dark"] [class*="bg-white"] { background-color: #302124; }
+html[data-theme="dark"] [class*="bg-[#F5EDE8]"] { background-color: #3b292d; }
+html[data-theme="dark"] [class*="bg-[#FFF0F5]"] { background-color: #492b35; }
+html[data-theme="dark"] [class*="text-[#2C2C2C]"] { color: #fff8f2; }
+html[data-theme="dark"] [class*="text-[#7A6960]"] { color: #d9bbb0; }
+html[data-theme="dark"] [class*="border-[#E8D5CC]"] { border-color: #644047; }
+html[data-theme="dark"] input,
+html[data-theme="dark"] textarea { background-color: #24191b; color: #fff8f2; }
+
 h1, h2, h3 {
   font-family: 'Playfair Display', serif;
 }

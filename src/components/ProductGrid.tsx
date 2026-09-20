@@ -4,6 +4,7 @@ import { products, type Category, type Product } from "../data/products";
 
 interface ProductGridProps {
   onAddToCart: (product: Product) => void;
+  onNotify?: (message: string, tone?: "success" | "error") => void;
 }
 
 const CATEGORIES: Category[] = ["All", "Cakes", "Croissants", "Savory", "Box Deals"];
@@ -14,7 +15,7 @@ const BADGE_STYLES: Record<string, string> = {
   "Limited Stock": "bg-[#C8902A] text-white",
 };
 
-export default function ProductGrid({ onAddToCart }: ProductGridProps) {
+export default function ProductGrid({ onAddToCart, onNotify }: ProductGridProps) {
   const [activeCategory, setActiveCategory] = useState<Category>("All");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
@@ -26,6 +27,7 @@ export default function ProductGrid({ onAddToCart }: ProductGridProps) {
 
   function handleAdd(product: Product) {
     onAddToCart(product);
+    onNotify?.("Product added to cart!", "success");
     setAddedIds((prev) => new Set(prev).add(product.id));
     setTimeout(() => {
       setAddedIds((prev) => {

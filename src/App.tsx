@@ -1,18 +1,66 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Navbar from "./components/Navbar";
 import Hero from "./components/Hero";
 import ProductGrid from "./components/ProductGrid";
 import CartDrawer, { type CartItem } from "./components/CartDrawer";
 import Checkout from "./components/Checkout";
 import AdminDashboard from "./components/AdminDashboard";
+import { SocialFeed } from "./components/SitePages";
+import SitePages from "./components/SitePages";
+import Footer from "./components/Footer";
+import FAQSection from "./components/FAQSection";
+import ChatWidget from "./components/ChatWidget";
+import Toast, { type ToastMessage } from "./components/Toast";
+import LoadingScreen from "./components/LoadingScreen";
 import type { Product } from "./data/products";
 
-type View = "home" | "shop" | "checkout" | "admin";
+type View = "home" | "shop" | "about" | "story" | "blog" | "contact" | "checkout" | "admin";
+
+const VIEWS: View[] = ["home", "shop", "about", "story", "blog", "contact", "checkout", "admin"];
+
+function getViewFromHash(): View {
+  const hash = window.location.hash.replace("#", "") as View;
+  return VIEWS.includes(hash) ? hash : "home";
+}
 
 export default function App() {
-  const [view, setView] = useState<View>("home");
+  const [view, setView] = useState<View>(getViewFromHash);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [darkMode, setDarkMode] = useState(() => localStorage.getItem("pamlicious-theme") === "dark");
+  const [isLoading, setIsLoading] = useState(true);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => setIsLoading(false), 450);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = darkMode ? "dark" : "light";
+    localStorage.setItem("pamlicious-theme", darkMode ? "dark" : "light");
+  }, [darkMode]);
+
+  useEffect(() => {
+    function syncView() {
+      setView(getViewFromHash());
+    }
+
+    window.addEventListener("hashchange", syncView);
+    return () => window.removeEventListener("hashchange", syncView);
+  }, []);
+
+  function navigateTo(nextView: string) {
+    const next = VIEWS.includes(nextView as View) ? nextView : "home";
+    window.location.hash = next === "home" ? "" : next;
+    setView(next as View);
+  }
+
+  function notify(message: string, tone: ToastMessage["tone"] = "success") {
+    const id = Date.now();
+    setToasts((current) => [...current, { id, message, tone }]);
+    window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 4200);
+  }
 
   function addToCart(product: Product) {
     setCartItems((prev) => {
@@ -25,6 +73,7 @@ export default function App() {
       return [...prev, { ...product, quantity: 1 }];
     });
     setCartOpen(true);
+    notify(`${product.name} added to your box.`);
   }
 
   function increment(id: number) {
@@ -46,27 +95,44 @@ export default function App() {
   }
 
   function handleCheckout() {
+    if (cartItems.length === 0) {
+      notify("Your box is empty. Add a pastry before checking out.", "error");
+      return;
+    }
     setCartOpen(false);
     setView("checkout");
   }
 
   function handleOrderComplete() {
     setCartItems([]);
-    setTimeout(() => setView("home"), 3000);
+    notify("Order confirmed. We are getting your bake ready!");
+    setTimeout(() => navigateTo("home"), 3000);
   }
 
   const cartCount = cartItems.reduce((s, i) => s + i.quantity, 0);
 
+  const sharedNavbar = (
+    <Navbar
+      cartCount={cartCount}
+      onCartOpen={() => setCartOpen(true)}
+      currentView={view}
+      onNavigate={navigateTo}
+      darkMode={darkMode}
+      onToggleTheme={() => setDarkMode((value) => !value)}
+    />
+  );
+
+  const sharedFooter = <Footer onNavigate={navigateTo} onNotify={notify} />;
+  const sharedChat = <ChatWidget />;
+  const sharedToast = <Toast messages={toasts} onDismiss={(id) => setToasts((current) => current.filter((toast) => toast.id !== id))} />;
+
+  if (isLoading) return <LoadingScreen />;
+
   if (view === "admin") {
     return (
       <>
-        <Navbar
-          cartCount={cartCount}
-          onCartOpen={() => setCartOpen(true)}
-          currentView="admin"
-          onNavigate={(v) => setView(v as View)}
-        />
-        <AdminDashboard onBack={() => setView("home")} />
+        {sharedNavbar}
+        <AdminDashboard onBack={() => navigateTo("home")} />
         <CartDrawer
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
@@ -76,6 +142,9 @@ export default function App() {
           onRemove={remove}
           onCheckout={handleCheckout}
         />
+        {sharedFooter}
+        {sharedChat}
+        {sharedToast}
       </>
     );
   }
@@ -83,42 +152,30 @@ export default function App() {
   if (view === "checkout") {
     return (
       <>
-        <Navbar
-          cartCount={cartCount}
-          onCartOpen={() => setCartOpen(true)}
-          currentView="checkout"
-          onNavigate={(v) => setView(v as View)}
-        />
+        {sharedNavbar}
         <Checkout
           items={cartItems}
-          onBack={() => setView("shop")}
+          onBack={() => navigateTo("shop")}
           onComplete={handleOrderComplete}
+          onNotify={notify}
         />
+        {sharedFooter}
+        {sharedChat}
+        {sharedToast}
       </>
     );
   }
 
   return (
     <>
-      <Navbar
-        cartCount={cartCount}
-        onCartOpen={() => setCartOpen(true)}
-        currentView={view}
-        onNavigate={(v) => setView(v as View)}
-      />
+      {sharedNavbar}
 
       {view === "home" && (
         <>
-          <Hero onShopNow={() => setView("shop")} />
+          <Hero onShopNow={() => navigateTo("shop")} />
           <ProductGrid onAddToCart={addToCart} />
-          <footer className="border-t border-[#E8D5CC] py-10 px-6 text-center bg-[#FFF8F2]">
-            <p className="font-['Playfair_Display'] text-2xl font-bold text-[#9B1C2E] mb-1">
-              pamlicious bite
-            </p>
-            <p className="font-['Outfit'] text-sm text-[#7A6960]">
-              Crafted with love pamliciuos · © 2026
-            </p>
-          </footer>
+          <SocialFeed />
+          <FAQSection />
         </>
       )}
 
@@ -127,7 +184,7 @@ export default function App() {
           <div className="pt-16">
             <div className="max-w-7xl mx-auto px-6 pt-12 pb-4">
               <button
-                onClick={() => setView("home")}
+                onClick={() => navigateTo("home")}
                 className="font-['Outfit'] text-sm text-[#7A6960] hover:text-[#9B1C2E] transition-colors mb-2"
               >
                 ← Home
@@ -135,15 +192,11 @@ export default function App() {
             </div>
             <ProductGrid onAddToCart={addToCart} />
           </div>
-          <footer className="border-t border-[#E8D5CC] py-10 px-6 text-center bg-[#FFF8F2]">
-            <p className="font-['Playfair_Display'] text-2xl font-bold text-[#9B1C2E] mb-1">
-              pamlicious bite
-            </p>
-            <p className="font-['Outfit'] text-sm text-[#7A6960]">
-              Crafted with love by pamlicious bite · © 2026
-            </p>
-          </footer>
         </>
+      )}
+
+      {["about", "story", "blog", "contact"].includes(view) && (
+        <SitePages page={view as "about" | "story" | "blog" | "contact"} onNavigate={navigateTo} onNotify={notify} />
       )}
 
       <CartDrawer
@@ -155,6 +208,9 @@ export default function App() {
         onRemove={remove}
         onCheckout={handleCheckout}
       />
+      {sharedFooter}
+      {sharedChat}
+      {sharedToast}
     </>
   );
 }
