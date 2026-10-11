@@ -18,13 +18,14 @@ type View = "home" | "shop" | "about" | "story" | "blog" | "contact" | "checkout
 
 const VIEWS: View[] = ["home", "shop", "about", "story", "blog", "contact", "checkout", "admin"];
 
-function getViewFromHash(): View {
+function getViewFromLocation(): View {
+  if (window.location.pathname.replace(/\/+$/, "") === "/admin") return "admin";
   const hash = window.location.hash.replace("#", "") as View;
   return VIEWS.includes(hash) ? hash : "home";
 }
 
 export default function App() {
-  const [view, setView] = useState<View>(getViewFromHash);
+  const [view, setView] = useState<View>(getViewFromLocation);
   const [cartOpen, setCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("pamlicious-theme") === "dark");
@@ -43,16 +44,21 @@ export default function App() {
 
   useEffect(() => {
     function syncView() {
-      setView(getViewFromHash());
+      setView(getViewFromLocation());
     }
 
     window.addEventListener("hashchange", syncView);
-    return () => window.removeEventListener("hashchange", syncView);
+    window.addEventListener("popstate", syncView);
+    return () => {
+      window.removeEventListener("hashchange", syncView);
+      window.removeEventListener("popstate", syncView);
+    };
   }, []);
 
   function navigateTo(nextView: string) {
     const next = VIEWS.includes(nextView as View) ? nextView : "home";
-    window.location.hash = next === "home" ? "" : next;
+    const nextUrl = next === "admin" ? "/admin" : next === "home" ? "/" : `/#${next}`;
+    window.history.pushState(null, "", nextUrl);
     setView(next as View);
   }
 
