@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle, Calendar, Clock } from "lucide-react";
 import type { CartItem } from "./CartDrawer";
 
@@ -10,6 +10,13 @@ interface CheckoutProps {
 }
 
 const TIME_SLOTS = ["9:00 AM – 12:00 PM", "12:00 PM – 4:00 PM"];
+
+interface PendingPayment {
+  name: string;
+  email: string;
+  total: number;
+  items: CartItem[];
+}
 
 function getDaysInMonth(year: number, month: number) {
   return new Date(year, month + 1, 0).getDate();
@@ -27,13 +34,77 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" });
-  const [submitted, setSubmitted] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const isPaymentReturn = window.location.pathname.replace(/\/+$/, "") === "/payment/complete";
+  const search = new URLSearchParams(window.location.search);
+  const paymentReference = search.get("reference") || search.get("trxref");
+  const [paymentResult, setPaymentResult] = useState<"checking" | "success" | "failed" | null>(
+    () => isPaymentReturn ? "checking" : null
+  );
+  const [paymentError, setPaymentError] = useState("");
+  const [pendingPayment, setPendingPayment] = useState<PendingPayment | null>(null);
+  const onCompleteRef = useRef(onComplete);
+  onCompleteRef.current = onComplete;
 
   const subtotal = items.reduce((s, i) => s + i.price * i.quantity, 0);
   const isEmpty = items.length === 0;
-  const deliveryFee = subtotal >= 15000 ? 0 : 1500;
+  const deliveryFee = fulfillment === "delivery" && subtotal < 15000 ? 1500 : 0;
   const total = subtotal + deliveryFee;
+
+  useEffect(() => {
+    if (!isPaymentReturn) return;
+
+    let active = true;
+    let completionTimer = 0;
+
+    async function verifyPayment() {
+      if (!paymentReference) {
+        setPaymentError("Paystack did not return a payment reference.");
+        setPaymentResult("failed");
+        return;
+      }
+
+      let pending: PendingPayment | null = null;
+      try {
+        const saved = sessionStorage.getItem("pamlicious-pending-payment");
+        pending = saved ? JSON.parse(saved) as PendingPayment : null;
+      } catch {
+        pending = null;
+      }
+      if (!pending) {
+        setPaymentError("This payment session has expired. Please contact the bakery with your Paystack receipt.");
+        setPaymentResult("failed");
+        return;
+      }
+      setPendingPayment(pending);
+
+      try {
+        const response = await fetch("/.netlify/functions/paystack-verify", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ reference: paymentReference }),
+        });
+        const result = await response.json();
+        if (!response.ok || !result.verified || result.amountKobo !== Math.round(pending.total * 100)) {
+          throw new Error(result.error || "The payment could not be confirmed.");
+        }
+        if (!active) return;
+        sessionStorage.removeItem("pamlicious-pending-payment");
+        setPaymentResult("success");
+        completionTimer = window.setTimeout(() => onCompleteRef.current(), 3500);
+      } catch (error) {
+        if (!active) return;
+        setPaymentError(error instanceof Error ? error.message : "The payment could not be confirmed.");
+        setPaymentResult("failed");
+      }
+    }
+
+    void verifyPayment();
+    return () => {
+      active = false;
+      window.clearTimeout(completionTimer);
+    };
+  }, [isPaymentReturn, paymentReference]);
 
   const daysInMonth = getDaysInMonth(calYear, calMonth);
   const firstDay = getFirstDayOfMonth(calYear, calMonth);
@@ -64,7 +135,7 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
     else setCalMonth(m => m + 1);
   }
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (items.length === 0) {
       onNotify?.("Your box is empty. Add a pastry before checking out.", "error");
@@ -75,11 +146,67 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
       return;
     }
     setIsSubmitting(true);
-    setSubmitted(true);
-    window.setTimeout(onComplete, 2500);
+    const deliveryDate = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
+    try {
+      const response = await fetch("/.netlify/functions/paystack-initialize", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          email: form.email,
+          name: form.name,
+          phone: form.phone,
+          address: form.address,
+          fulfillment,
+          deliveryDate,
+          deliverySlot: selectedSlot,
+          items: items.map(({ id, name, quantity }) => ({ id, name, quantity })),
+        }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not start your payment.");
+      if (result.amountKobo !== Math.round(total * 100)) {
+        throw new Error("Your cart total changed. Refresh the page and try again.");
+      }
+      sessionStorage.setItem("pamlicious-pending-payment", JSON.stringify({
+        name: form.name,
+        email: form.email,
+        total,
+        items,
+      } satisfies PendingPayment));
+      window.location.assign(result.authorizationUrl);
+    } catch (error) {
+      setIsSubmitting(false);
+      onNotify?.(error instanceof Error ? error.message : "Could not start your payment.", "error");
+    }
   }
 
-  if (submitted) {
+  if (paymentResult === "checking") {
+    return (
+      <div className="min-h-screen bg-[#FFF8F2] flex items-center justify-center px-4" role="status">
+        <div className="text-center max-w-md">
+          <div className="mx-auto mb-5 h-12 w-12 animate-spin rounded-full border-4 border-[#E8D5CC] border-t-[#9B1C2E] motion-reduce:animate-none" />
+          <h2 className="font-['Playfair_Display'] text-2xl font-bold text-[#2C2C2C]">Confirming your payment</h2>
+          <p className="font-['Outfit'] text-sm text-[#7A6960] mt-2">Please keep this page open for a moment.</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (paymentResult === "failed") {
+    return (
+      <div className="min-h-screen bg-[#FFF8F2] flex items-center justify-center px-4">
+        <div className="text-center max-w-md">
+          <h2 className="font-['Playfair_Display'] text-3xl font-bold text-[#2C2C2C] mb-3">Payment not confirmed</h2>
+          <p className="font-['Outfit'] text-[#7A6960] mb-6">{paymentError}</p>
+          <button onClick={onBack} className="px-6 py-3 bg-[#9B1C2E] text-white rounded-full font-['Outfit'] font-semibold text-sm">
+            Return to shop
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  if (paymentResult === "success") {
     return (
       <div className="min-h-screen bg-[#FFF8F2] flex items-center justify-center px-4">
         <div className="text-center max-w-md">
@@ -90,15 +217,15 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
             Order Placed!
           </h2>
           <p className="font-['Outfit'] text-[#7A6960] mb-2">
-            Thank you, <strong>{form.name}</strong>! Your order has been received.
+            Thank you, <strong>{pendingPayment?.name}</strong>! Your payment has been confirmed.
           </p>
           <p className="font-['Outfit'] text-sm text-[#7A6960]">
-            You'll receive a confirmation at <strong>{form.email}</strong>.
+            Your Paystack receipt will be sent to <strong>{pendingPayment?.email}</strong>.
           </p>
           <div className="mt-6 p-4 bg-white rounded-2xl border border-[#E8D5CC]">
             <p className="font-['Outfit'] text-sm text-[#7A6960]">Order total</p>
             <p className="font-['Playfair_Display'] text-2xl font-bold text-[#9B1C2E]">
-              ₦{total.toLocaleString()}
+              ₦{(pendingPayment?.total ?? total).toLocaleString()}
             </p>
           </div>
         </div>

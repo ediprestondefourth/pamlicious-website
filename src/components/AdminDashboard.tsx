@@ -2,9 +2,9 @@ import { useState } from "react";
 import {
   TrendingUp, Package, AlertTriangle, Star,
   Edit2, ToggleLeft, ToggleRight, ChevronLeft,
-  BarChart2, ShoppingCart,
+  BarChart2, ShoppingCart, LogOut, Save, X,
 } from "lucide-react";
-import { products as initialProducts, type Product } from "../data/products";
+import type { Product } from "../data/products";
 
 type OrderStatus = "Pending" | "Baking" | "Out for Delivery" | "Delivered";
 
@@ -41,24 +41,36 @@ type Tab = "overview" | "inventory" | "orders";
 
 interface AdminDashboardProps {
   onBack: () => void;
+  onLogout: () => void;
+  products: Product[];
+  onProductsChange: (products: Product[]) => void;
 }
 
-export default function AdminDashboard({ onBack }: AdminDashboardProps) {
+const PRODUCT_CATEGORIES: Product["category"][] = ["Cakes", "Croissants", "Savory", "Box Deals"];
+
+export default function AdminDashboard({ onBack, onLogout, products, onProductsChange }: AdminDashboardProps) {
   const [activeTab, setActiveTab] = useState<Tab>("overview");
-  const [prods, setProds] = useState<Product[]>(initialProducts);
   const [orders, setOrders] = useState<Order[]>(MOCK_ORDERS);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
 
   const maxVal = Math.max(...MONTHLY_DATA);
-  const lowStock = prods.filter((p) => p.stock < 5);
+  const lowStock = products.filter((p) => p.stock < 5);
   const totalSalesToday = orders
     .filter((o) => o.date === "14 Sep 2026" && o.payment === "Paid")
     .reduce((s, o) => s + o.value, 0);
   const pendingOrders = orders.filter((o) => o.status === "Pending").length;
 
   function toggleStatus(id: number) {
-    setProds((prev) =>
-      prev.map((p) => p.id === id ? { ...p, status: p.status === "Active" ? "Draft" : "Active" } : p)
+    onProductsChange(
+      products.map((p) => p.id === id ? { ...p, status: p.status === "Active" ? "Draft" : "Active" } : p)
     );
+  }
+
+  function saveProduct(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    if (!editingProduct) return;
+    onProductsChange(products.map((product) => product.id === editingProduct.id ? editingProduct : product));
+    setEditingProduct(null);
   }
 
   function updateOrderStatus(orderId: string, status: OrderStatus) {
@@ -92,6 +104,12 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
               pamlicious bite · September 14, 2026
             </p>
           </div>
+          <button
+            onClick={onLogout}
+            className="inline-flex items-center gap-2 rounded-full border border-[#E8D5CC] bg-white px-4 py-2 font-['Outfit'] text-sm font-medium text-[#7A6960] hover:text-[#9B1C2E]"
+          >
+            <LogOut size={15} /> Sign out
+          </button>
         </div>
 
         {/* Tabs */}
@@ -229,7 +247,7 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-[#E8D5CC]">
-                  {prods.map((p) => (
+                  {products.map((p) => (
                     <tr key={p.id} className="hover:bg-[#FFF8F2] transition-colors">
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-3">
@@ -281,7 +299,13 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                             )}
                             {p.status}
                           </button>
-                          <button className="p-1 text-[#7A6960] hover:text-[#9B1C2E] transition-colors">
+                          <button
+                            type="button"
+                            onClick={() => setEditingProduct({ ...p })}
+                            aria-label={`Edit ${p.name}`}
+                            title={`Edit ${p.name}`}
+                            className="p-1 text-[#7A6960] hover:text-[#9B1C2E] transition-colors"
+                          >
                             <Edit2 size={14} />
                           </button>
                         </div>
@@ -291,6 +315,75 @@ export default function AdminDashboard({ onBack }: AdminDashboardProps) {
                 </tbody>
               </table>
             </div>
+          </div>
+        )}
+
+        {editingProduct && (
+          <div
+            className="fixed inset-0 z-[80] flex items-center justify-center bg-black/45 px-4 py-6"
+            onMouseDown={(event) => { if (event.target === event.currentTarget) setEditingProduct(null); }}
+          >
+            <form
+              role="dialog"
+              aria-modal="true"
+              aria-labelledby="edit-product-title"
+              onSubmit={saveProduct}
+              className="max-h-full w-full max-w-lg overflow-y-auto rounded-xl border border-[#E8D5CC] bg-[#FFF8F2] p-6 shadow-2xl"
+            >
+              <div className="mb-5 flex items-start justify-between gap-4">
+                <div>
+                  <h2 id="edit-product-title" className="font-['Playfair_Display'] text-xl font-bold text-[#2C2C2C]">Edit product</h2>
+                  <p className="mt-1 font-['Outfit'] text-xs text-[#7A6960]">SKU: {editingProduct.sku}</p>
+                </div>
+                <button type="button" aria-label="Close editor" onClick={() => setEditingProduct(null)} className="rounded-full p-2 text-[#7A6960] hover:bg-[#FFF0F5]">
+                  <X size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <label className="block font-['Outfit'] text-xs font-semibold text-[#7A6960]">
+                  Product name
+                  <input required value={editingProduct.name} onChange={(event) => setEditingProduct({ ...editingProduct, name: event.target.value })} className="mt-1 w-full rounded-lg border border-[#E8D5CC] bg-white px-3 py-2.5 text-sm text-[#2C2C2C]" />
+                </label>
+                <label className="block font-['Outfit'] text-xs font-semibold text-[#7A6960]">
+                  Category
+                  <select value={editingProduct.category} onChange={(event) => setEditingProduct({ ...editingProduct, category: event.target.value as Product["category"] })} className="mt-1 w-full rounded-lg border border-[#E8D5CC] bg-white px-3 py-2.5 text-sm text-[#2C2C2C]">
+                    {PRODUCT_CATEGORIES.map((category) => <option key={category} value={category}>{category}</option>)}
+                  </select>
+                </label>
+                <label className="block font-['Outfit'] text-xs font-semibold text-[#7A6960]">
+                  Description
+                  <textarea required rows={3} value={editingProduct.description} onChange={(event) => setEditingProduct({ ...editingProduct, description: event.target.value })} className="mt-1 w-full resize-y rounded-lg border border-[#E8D5CC] bg-white px-3 py-2.5 text-sm text-[#2C2C2C]" />
+                </label>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block font-['Outfit'] text-xs font-semibold text-[#7A6960]">
+                    Price (Naira)
+                    <input required min={1} step={1} type="number" value={editingProduct.price} onChange={(event) => setEditingProduct({ ...editingProduct, price: Number(event.target.value) })} className="mt-1 w-full rounded-lg border border-[#E8D5CC] bg-white px-3 py-2.5 text-sm text-[#2C2C2C]" />
+                  </label>
+                  <label className="block font-['Outfit'] text-xs font-semibold text-[#7A6960]">
+                    Stock count
+                    <input required min={0} step={1} type="number" value={editingProduct.stock} onChange={(event) => setEditingProduct({ ...editingProduct, stock: Number(event.target.value) })} className="mt-1 w-full rounded-lg border border-[#E8D5CC] bg-white px-3 py-2.5 text-sm text-[#2C2C2C]" />
+                  </label>
+                </div>
+                <div className="grid gap-4 sm:grid-cols-2">
+                  <label className="block font-['Outfit'] text-xs font-semibold text-[#7A6960]">
+                    Image URL
+                    <input required type="url" value={editingProduct.image} onChange={(event) => setEditingProduct({ ...editingProduct, image: event.target.value })} className="mt-1 w-full rounded-lg border border-[#E8D5CC] bg-white px-3 py-2.5 text-sm text-[#2C2C2C]" />
+                  </label>
+                  <label className="block font-['Outfit'] text-xs font-semibold text-[#7A6960]">
+                    Hover image URL
+                    <input required type="url" value={editingProduct.hoverImage} onChange={(event) => setEditingProduct({ ...editingProduct, hoverImage: event.target.value })} className="mt-1 w-full rounded-lg border border-[#E8D5CC] bg-white px-3 py-2.5 text-sm text-[#2C2C2C]" />
+                  </label>
+                </div>
+              </div>
+
+              <div className="mt-6 flex justify-end gap-3">
+                <button type="button" onClick={() => setEditingProduct(null)} className="rounded-full border border-[#E8D5CC] bg-white px-5 py-2.5 font-['Outfit'] text-sm font-medium text-[#7A6960]">Cancel</button>
+                <button type="submit" className="inline-flex items-center gap-2 rounded-full bg-[#9B1C2E] px-5 py-2.5 font-['Outfit'] text-sm font-semibold text-white hover:bg-[#7d1624]">
+                  <Save size={15} /> Save product
+                </button>
+              </div>
+            </form>
           </div>
         )}
 

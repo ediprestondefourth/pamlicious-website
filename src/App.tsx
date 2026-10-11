@@ -5,6 +5,7 @@ import ProductGrid from "./components/ProductGrid";
 import CartDrawer, { type CartItem } from "./components/CartDrawer";
 import Checkout from "./components/Checkout";
 import AdminDashboard from "./components/AdminDashboard";
+import AdminLogin from "./components/AdminLogin";
 import { SocialFeed } from "./components/SitePages";
 import SitePages from "./components/SitePages";
 import Footer from "./components/Footer";
@@ -12,22 +13,52 @@ import FAQSection from "./components/FAQSection";
 import ChatWidget from "./components/ChatWidget";
 import Toast, { type ToastMessage } from "./components/Toast";
 import LoadingScreen from "./components/LoadingScreen";
-import type { Product } from "./data/products";
+import { products as initialProducts, type Product } from "./data/products";
 
 type View = "home" | "shop" | "about" | "story" | "blog" | "contact" | "checkout" | "admin";
 
 const VIEWS: View[] = ["home", "shop", "about", "story", "blog", "contact", "checkout", "admin"];
 
 function getViewFromLocation(): View {
-  if (window.location.pathname.replace(/\/+$/, "") === "/admin") return "admin";
+  const pathname = window.location.pathname.replace(/\/+$/, "");
+  if (pathname === "/admin") return "admin";
+  if (pathname === "/payment/complete") return "checkout";
   const hash = window.location.hash.replace("#", "") as View;
   return VIEWS.includes(hash) ? hash : "home";
+}
+
+function getStoredProducts(): Product[] {
+  try {
+    const saved = localStorage.getItem("pamlicious-products");
+    if (saved) {
+      const parsed: unknown = JSON.parse(saved);
+      if (Array.isArray(parsed)) return parsed as Product[];
+    }
+  } catch {
+    localStorage.removeItem("pamlicious-products");
+  }
+  return initialProducts;
+}
+
+function getPendingCart(): CartItem[] {
+  try {
+    const saved = sessionStorage.getItem("pamlicious-pending-payment");
+    const pending: unknown = saved ? JSON.parse(saved) : null;
+    if (pending && typeof pending === "object" && "items" in pending && Array.isArray(pending.items)) {
+      return pending.items as CartItem[];
+    }
+  } catch {
+    sessionStorage.removeItem("pamlicious-pending-payment");
+  }
+  return [];
 }
 
 export default function App() {
   const [view, setView] = useState<View>(getViewFromLocation);
   const [cartOpen, setCartOpen] = useState(false);
-  const [cartItems, setCartItems] = useState<CartItem[]>([]);
+  const [cartItems, setCartItems] = useState<CartItem[]>(getPendingCart);
+  const [catalog, setCatalog] = useState<Product[]>(getStoredProducts);
+  const [adminToken, setAdminToken] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState(() => localStorage.getItem("pamlicious-theme") === "dark");
   const [isLoading, setIsLoading] = useState(true);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
@@ -41,6 +72,22 @@ export default function App() {
     document.documentElement.dataset.theme = darkMode ? "dark" : "light";
     localStorage.setItem("pamlicious-theme", darkMode ? "dark" : "light");
   }, [darkMode]);
+
+  useEffect(() => {
+    localStorage.setItem("pamlicious-products", JSON.stringify(catalog));
+  }, [catalog]);
+
+  useEffect(() => {
+    let active = true;
+    fetch("/.netlify/functions/products")
+      .then(async (response) => {
+        if (!response.ok) return;
+        const result = await response.json();
+        if (active && Array.isArray(result.products)) setCatalog(result.products as Product[]);
+      })
+      .catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     function syncView() {
@@ -66,6 +113,32 @@ export default function App() {
     const id = Date.now();
     setToasts((current) => [...current, { id, message, tone }]);
     window.setTimeout(() => setToasts((current) => current.filter((toast) => toast.id !== id)), 4200);
+  }
+
+  async function saveCatalog(nextProducts: Product[]) {
+    setCatalog(nextProducts);
+    const token = sessionStorage.getItem("pamlicious-admin-session");
+    if (!token) {
+      notify("Your admin session expired. Sign in again to save changes.", "error");
+      return;
+    }
+
+    try {
+      const response = await fetch("/.netlify/functions/products", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ products: nextProducts }),
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || "Could not save product changes.");
+      if (Array.isArray(result.products)) setCatalog(result.products as Product[]);
+      notify("Product changes saved.");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "Could not save product changes.", "error");
+    }
   }
 
   function addToCart(product: Product) {
@@ -135,10 +208,24 @@ export default function App() {
   if (isLoading) return <LoadingScreen />;
 
   if (view === "admin") {
+    function logoutAdmin() {
+      sessionStorage.removeItem("pamlicious-admin-session");
+      setAdminToken(null);
+    }
+
     return (
       <>
         {sharedNavbar}
-        <AdminDashboard onBack={() => navigateTo("home")} />
+        {adminToken ? (
+          <AdminDashboard
+            onBack={() => navigateTo("home")}
+            onLogout={logoutAdmin}
+            products={catalog}
+            onProductsChange={saveCatalog}
+          />
+        ) : (
+          <AdminLogin onAuthenticated={setAdminToken} />
+        )}
         <CartDrawer
           isOpen={cartOpen}
           onClose={() => setCartOpen(false)}
@@ -179,7 +266,7 @@ export default function App() {
       {view === "home" && (
         <>
           <Hero onShopNow={() => navigateTo("shop")} />
-          <ProductGrid onAddToCart={addToCart} />
+          <ProductGrid products={catalog} onAddToCart={addToCart} />
           <SocialFeed />
           <FAQSection />
         </>
@@ -196,7 +283,7 @@ export default function App() {
                 ← Home
               </button>
             </div>
-            <ProductGrid onAddToCart={addToCart} />
+            <ProductGrid products={catalog} onAddToCart={addToCart} />
           </div>
         </>
       )}

@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { ShoppingBag, Star } from "lucide-react";
-import { products, type Category, type Product } from "../data/products";
+import type { Category, Product } from "../data/products";
 
 interface ProductGridProps {
+  products: Product[];
   onAddToCart: (product: Product) => void;
   onNotify?: (message: string, tone?: "success" | "error") => void;
 }
@@ -15,15 +16,16 @@ const BADGE_STYLES: Record<string, string> = {
   "Limited Stock": "bg-[#C8902A] text-white",
 };
 
-export default function ProductGrid({ onAddToCart, onNotify }: ProductGridProps) {
+export default function ProductGrid({ products, onAddToCart, onNotify }: ProductGridProps) {
   const [activeCategory, setActiveCategory] = useState<Category>("All");
   const [hoveredId, setHoveredId] = useState<number | null>(null);
   const [addedIds, setAddedIds] = useState<Set<number>>(new Set());
 
+  const availableProducts = products.filter((product) => product.status === "Active");
   const filtered =
     activeCategory === "All"
-      ? products
-      : products.filter((p) => p.category === activeCategory);
+      ? availableProducts
+      : availableProducts.filter((p) => p.category === activeCategory);
 
   function handleAdd(product: Product) {
     onAddToCart(product);
