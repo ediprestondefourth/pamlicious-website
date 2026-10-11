@@ -61,6 +61,19 @@ html[data-theme="dark"] [class*="bg-[#FFF0F5]"] { background-color: #492b35; }
 html[data-theme="dark"] [class*="text-[#2C2C2C]"] { color: #fff8f2; }
 html[data-theme="dark"] [class*="text-[#7A6960]"] { color: #d9bbb0; }
 html[data-theme="dark"] [class*="border-[#E8D5CC]"] { border-color: #644047; }
+html[data-theme="dark"] header [class*="text-[#9B1C2E]"] { color: #f2a7a1; }
+html[data-theme="dark"] .hero-section { background-color: #24191b; }
+html[data-theme="dark"] .hero-overlay {
+  background-image: linear-gradient(90deg, rgba(36, 25, 27, 0.97) 0%, rgba(36, 25, 27, 0.84) 48%, rgba(36, 25, 27, 0.28) 100%);
+}
+html[data-theme="dark"] .hero-eyebrow { color: #edc477; }
+html[data-theme="dark"] .hero-accent,
+html[data-theme="dark"] .hero-stat-value { color: #f2a7a1; }
+html[data-theme="dark"] .hero-secondary {
+  border-color: #f2b5ad;
+  color: #ffd4ca;
+}
+html[data-theme="dark"] .hero-secondary:hover { background-color: #492b35; }
 html[data-theme="dark"] input,
 html[data-theme="dark"] textarea { background-color: #24191b; color: #fff8f2; }
 

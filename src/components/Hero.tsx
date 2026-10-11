@@ -4,7 +4,7 @@ interface HeroProps {
 
 export default function Hero({ onShopNow }: HeroProps) {
   return (
-    <section className="relative min-h-screen flex items-center overflow-hidden bg-[#FFF8F2]">
+    <section className="hero-section relative min-h-screen flex items-center overflow-hidden bg-[#FFF8F2]">
       {/* Background image */}
       <div
         className="absolute inset-0 bg-cover bg-center bg-no-repeat"
@@ -13,16 +13,16 @@ export default function Hero({ onShopNow }: HeroProps) {
             "url('https://images.unsplash.com/photo-1583338917451-face2751d8d5?w=1600&h=1000&fit=crop&auto=format')",
         }}
       />
-      <div className="absolute inset-0 bg-gradient-to-r from-[#FFF8F2]/95 via-[#FFF8F2]/70 to-transparent" />
+      <div className="hero-overlay absolute inset-0 bg-gradient-to-r from-[#FFF8F2]/95 via-[#FFF8F2]/70 to-transparent" />
 
       <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 w-full pt-16">
         <div className="max-w-xl">
-          <p className="font-['Outfit'] text-xs font-semibold tracking-[0.3em] uppercase text-[#C8902A] mb-4">
+          <p className="hero-eyebrow font-['Outfit'] text-xs font-semibold tracking-[0.3em] uppercase text-[#C8902A] mb-4">
             Crafted in Lagos · Delivered Fresh
           </p>
           <h1 className="font-['Playfair_Display'] text-5xl sm:text-6xl lg:text-7xl font-bold text-[#2C2C2C] leading-tight mb-6">
             Pastries{" "}
-            <span className="italic text-[#9B1C2E]">made</span>
+            <span className="hero-accent italic text-[#9B1C2E]">made</span>
             <br />
             with love.
           </h1>
@@ -39,7 +39,7 @@ export default function Hero({ onShopNow }: HeroProps) {
             </button>
             <button
               onClick={onShopNow}
-              className="px-8 py-3.5 border border-[#9B1C2E] text-[#9B1C2E] font-['Outfit'] font-semibold text-sm tracking-wide rounded-full hover:bg-[#FFF0F5] transition-all duration-300"
+              className="hero-secondary px-8 py-3.5 border border-[#9B1C2E] text-[#9B1C2E] font-['Outfit'] font-semibold text-sm tracking-wide rounded-full hover:bg-[#FFF0F5] transition-all duration-300"
             >
               View Box Deals
             </button>
@@ -53,7 +53,7 @@ export default function Hero({ onShopNow }: HeroProps) {
               { num: "4.9★", label: "Average Rating" },
             ].map(({ num, label }) => (
               <div key={label} className="flex flex-col">
-                <span className="font-['Playfair_Display'] text-2xl font-bold text-[#9B1C2E]">
+                <span className="hero-stat-value font-['Playfair_Display'] text-2xl font-bold text-[#9B1C2E]">
                   {num}
                 </span>
                 <span className="font-['Outfit'] text-xs text-[#7A6960]">{label}</span>
