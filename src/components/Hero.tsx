@@ -18,7 +18,7 @@ export default function Hero({ onShopNow }: HeroProps) {
       <div className="relative z-10 max-w-7xl mx-auto px-6 sm:px-10 w-full pt-16">
         <div className="max-w-xl">
           <p className="hero-eyebrow font-['Outfit'] text-xs font-semibold tracking-[0.3em] uppercase text-[#C8902A] mb-4">
-            Crafted in Lagos · Delivered Fresh
+            Made in Rivers State · Delivered Fresh
           </p>
           <h1 className="font-['Playfair_Display'] text-5xl sm:text-6xl lg:text-7xl font-bold text-[#2C2C2C] leading-tight mb-6">
             Pastries{" "}

@@ -4,7 +4,6 @@ export const CATALOG = {
   3: { name: "Chocolate Velvet Cupcakes", price: 7500 },
   4: { name: "Burger", price: 6000 },
   5: { name: "Nigeria-Made Meat Pie", price: 1500 },
-  6: { name: "Fruit Parfait", price: 5000 },
   7: { name: "Cake Parfait", price: 5000 },
   8: { name: "Small Chops Box Package", price: 5000 },
   9: { name: "Almond & Herb Cheese Roll", price: 4200 },

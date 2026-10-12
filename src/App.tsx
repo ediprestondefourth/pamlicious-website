@@ -32,7 +32,7 @@ function getStoredProducts(): Product[] {
     const saved = localStorage.getItem("pamlicious-products");
     if (saved) {
       const parsed: unknown = JSON.parse(saved);
-      if (Array.isArray(parsed)) return parsed as Product[];
+      if (Array.isArray(parsed)) return (parsed as Product[]).filter((product) => product.id !== 6);
     }
   } catch {
     localStorage.removeItem("pamlicious-products");
@@ -45,7 +45,7 @@ function getPendingCart(): CartItem[] {
     const saved = sessionStorage.getItem("pamlicious-pending-payment");
     const pending: unknown = saved ? JSON.parse(saved) : null;
     if (pending && typeof pending === "object" && "items" in pending && Array.isArray(pending.items)) {
-      return pending.items as CartItem[];
+      return (pending.items as CartItem[]).filter((item) => item.id !== 6);
     }
   } catch {
     sessionStorage.removeItem("pamlicious-pending-payment");
@@ -83,7 +83,11 @@ export default function App() {
       .then(async (response) => {
         if (!response.ok) return;
         const result = await response.json();
-        if (active && Array.isArray(result.products)) setCatalog(result.products as Product[]);
+        if (active && Array.isArray(result.products)) {
+          const products = (result.products as Product[]).filter((product) => product.id !== 6);
+          setCatalog(products);
+          setCartItems((current) => current.filter((item) => item.id !== 6));
+        }
       })
       .catch(() => undefined);
     return () => { active = false; };

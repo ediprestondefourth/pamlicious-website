@@ -319,7 +319,7 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
                     <input
                       type="text"
                       required
-                      placeholder="5 Admiralty Way, Lekki Phase 1, Lagos"
+                      placeholder="Ada George Road, Rivers"
                       value={form.address}
                       onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
                       className="w-full px-4 py-2.5 rounded-xl border border-[#E8D5CC] font-['Outfit'] text-sm text-[#2C2C2C] placeholder-[#C5B5AD] focus:outline-none focus:ring-2 focus:ring-[#9B1C2E]/30 focus:border-[#9B1C2E] transition-all"

@@ -79,18 +79,6 @@ export const products: Product[] = [
     status: "Active",
   },
   {
-    id: 6,
-    name: "Fruit Parfait",
-    category: "Cakes",
-    price: 5000,
-    image: "https://images.unsplash.com/photo-1488477181946-6428a0291777?w=600&h=600&fit=crop&auto=format",
-    hoverImage: "https://images.unsplash.com/photo-1511690743698-d9d85f2fbf38?w=600&h=600&fit=crop&auto=format",
-    description: "Fresh fruit layers with creamy yogurt and a crunchy granola finish in a chilled cup.",
-    stock: 18,
-    sku: "CAK-004",
-    status: "Active",
-  },
-  {
     id: 7,
     name: "Cake Parfait",
     category: "Cakes",
