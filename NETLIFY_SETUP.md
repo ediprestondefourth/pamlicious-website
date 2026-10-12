@@ -2,7 +2,7 @@
 
 ## Supabase product catalog
 
-Run `supabase/migrations/20261011000000_products.sql` in the Supabase SQL Editor for project `pytmbpnggrmxzlkahbsw`. The migration creates and seeds the `products` table. Row-level security is enabled; browser clients receive no direct table access. Netlify Functions use the service-role key server-side.
+Run `supabase/migrations/20261011000000_products.sql` in the Supabase SQL Editor. The migration creates and seeds the `products` table. Row-level security is enabled; browser clients receive no direct table access. Netlify Functions use the service-role key server-side.
 
 ## Netlify environment variables
 
