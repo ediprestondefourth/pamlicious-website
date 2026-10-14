@@ -1,6 +1,14 @@
 import { useEffect, useRef, useState } from "react";
 import { ChevronLeft, ChevronRight, CheckCircle, Calendar, Clock } from "lucide-react";
 import type { CartItem } from "./CartDrawer";
+import {
+  formatDeliveryDate,
+  getDaysInMonth,
+  getFirstDayOfMonth,
+  isScheduleDateDisabled,
+  isSelectedScheduleDate,
+  type ScheduleDate,
+} from "../lib/checkout-calendar";
 
 interface CheckoutProps {
   items: CartItem[];
@@ -18,19 +26,11 @@ interface PendingPayment {
   items: CartItem[];
 }
 
-function getDaysInMonth(year: number, month: number) {
-  return new Date(year, month + 1, 0).getDate();
-}
-
-function getFirstDayOfMonth(year: number, month: number) {
-  return new Date(year, month, 1).getDay();
-}
-
 export default function Checkout({ items, onBack, onComplete, onNotify }: CheckoutProps) {
   const today = new Date();
   const [calMonth, setCalMonth] = useState(today.getMonth());
   const [calYear, setCalYear] = useState(today.getFullYear());
-  const [selectedDate, setSelectedDate] = useState<number | null>(null);
+  const [selectedDate, setSelectedDate] = useState<ScheduleDate | null>(null);
   const [selectedSlot, setSelectedSlot] = useState<string | null>(null);
   const [fulfillment, setFulfillment] = useState<"delivery" | "pickup">("delivery");
   const [form, setForm] = useState({ name: "", email: "", phone: "", address: "" });
@@ -114,16 +114,7 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
   ];
 
   function isDisabled(day: number) {
-    const d = new Date(calYear, calMonth, day);
-    const now = new Date();
-    if (d.getDay() === 0) return true; // Sunday
-    if (d < new Date(now.getFullYear(), now.getMonth(), now.getDate())) return true; // past
-    if (
-      d.toDateString() === now.toDateString() &&
-      now.getHours() >= 14
-    )
-      return true; // today after 2 PM
-    return false;
+    return isScheduleDateDisabled(calYear, calMonth, day);
   }
 
   function prevMonth() {
@@ -146,7 +137,7 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
       return;
     }
     setIsSubmitting(true);
-    const deliveryDate = `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(selectedDate).padStart(2, "0")}`;
+    const deliveryDate = formatDeliveryDate(selectedDate);
     try {
       const response = await fetch("/.netlify/functions/paystack-initialize", {
         method: "POST",
@@ -364,13 +355,13 @@ export default function Checkout({ items, onBack, onComplete, onNotify }: Checko
                   {Array.from({ length: daysInMonth }, (_, i) => {
                     const day = i + 1;
                     const disabled = isDisabled(day);
-                    const selected = selectedDate === day && calMonth === today.getMonth();
+                    const selected = isSelectedScheduleDate(selectedDate, calYear, calMonth, day);
                     return (
                       <button
                         key={day}
                         type="button"
                         disabled={disabled}
-                        onClick={() => setSelectedDate(day)}
+                        onClick={() => setSelectedDate({ year: calYear, month: calMonth, day })}
                         className={`aspect-square rounded-lg text-xs font-['Outfit'] font-medium transition-all ${
                           disabled
                             ? "text-[#C5B5AD] cursor-not-allowed"
